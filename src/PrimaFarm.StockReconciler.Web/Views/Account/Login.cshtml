@@ -1,0 +1,26 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+    ViewData["Tagline"] = "Sign in to reconcile farm stock against the ERP export.";
+}
+<section class="card" aria-label="Sign in">
+    <h2>Sign in</h2>
+    <p class="hint">Use the account issued by the farm administrator. Accounts lock after repeated failed attempts.</p>
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-error" role="alert"></div>
+
+    <form method="post" asp-action="Login" autocomplete="on">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div class="field">
+            <label asp-for="Username">Username</label>
+            <input asp-for="Username" type="text" autofocus autocomplete="username" />
+            <span asp-validation-for="Username" class="field-validation-error"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Password">Password</label>
+            <input asp-for="Password" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="field-validation-error"></span>
+        </div>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+    </form>
+</section>

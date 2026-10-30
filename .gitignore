@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+publish/
+artifacts/
+TestResults/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Runtime
+logs/
+*.log
+
+# Secrets - never commit. Use user-secrets, environment variables or the IIS app-pool environment.
+appsettings.Production.json
+appsettings.*.local.json
+*.pfx
+*.pem
+secrets.json
+
+# Real farm / ERP data must never be committed (only synthetic files in /samples)
+*.xlsx
+!samples/*.xlsx

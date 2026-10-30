@@ -1,0 +1,123 @@
+# CI/CD for Prima Three Acre Farms Stock Reconciler
+#   feature/* and PRs -> build, test, security scan, validate SQL scripts
+#   main              -> + publish package -> deploy to UAT (approval gate) -> deploy to PROD (CAB approval gate)
+# The UAT/PROD jobs run on self-hosted Windows runners inside the corporate network next to IIS.
+
+name: ci-cd
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "hotfix/**"]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: true
+
+jobs:
+  build-test:
+    name: Build, test & scan
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore PrimaFarm.StockReconciler.slnx
+
+      - name: Build (warnings are errors)
+        run: dotnet build PrimaFarm.StockReconciler.slnx -c Release --no-restore -warnaserror
+
+      - name: Unit tests + coverage
+        run: dotnet test PrimaFarm.StockReconciler.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults --logger trx
+
+      - name: Fail on vulnerable NuGet packages (OWASP A06)
+        shell: pwsh
+        run: |
+          $out = dotnet list PrimaFarm.StockReconciler.slnx package --vulnerable --include-transitive 2>&1
+          $out
+          if ($out -match "has the following vulnerable packages") { throw "Vulnerable packages found" }
+
+      - name: Publish
+        run: dotnet publish src/PrimaFarm.StockReconciler.Web -c Release --no-build -o publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prima-stock-web
+          path: publish
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults
+
+  database-validate:
+    name: Validate T-SQL scripts (apply twice = idempotent)
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: ${{ secrets.CI_SQL_SA_PASSWORD || 'CiOnly!Passw0rd' }}
+        ports: ["1433:1433"]
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q 'SELECT 1'"
+          --health-interval 10s --health-retries 12
+    env:
+      SA_PASSWORD: ${{ secrets.CI_SQL_SA_PASSWORD || 'CiOnly!Passw0rd' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sqlcmd
+        run: sudo apt-get update && sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18
+      - name: Apply scripts twice
+        run: |
+          SQLCMD="/opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa -P $SA_PASSWORD"
+          $SQLCMD -Q "CREATE DATABASE PrimaFarmStockDb"
+          for pass in 1 2; do
+            for f in database/0*.sql; do echo "pass $pass: $f"; $SQLCMD -d PrimaFarmStockDb -i "$f"; done
+          done
+          $SQLCMD -d PrimaFarmStockDb -Q "EXEC dbo.usp_GetDashboardSummary @FromUtc='2000-01-01', @ToUtc='2100-01-01'"
+
+  deploy-uat:
+    name: Deploy to UAT
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build-test, database-validate]
+    runs-on: [self-hosted, windows, uat]
+    environment: uat            # GitHub environment with required reviewers = UAT approval gate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: prima-stock-web, path: package }
+      - name: Apply database change scripts
+        shell: pwsh
+        run: Get-ChildItem database/0*.sql | Sort-Object Name | ForEach-Object { sqlcmd -b -S "${{ vars.SQL_SERVER }}" -d PrimaFarmStockDb -E -i $_.FullName }
+      - name: Deploy to IIS (backup, deploy, health check, auto-rollback)
+        shell: pwsh
+        run: ./deploy/iis-deploy.ps1 -PackagePath package -SitePath "${{ vars.IIS_SITE_PATH }}" -AppPoolName "${{ vars.IIS_APP_POOL }}" -HealthUrl "${{ vars.HEALTH_URL }}"
+
+  deploy-prod:
+    name: Deploy to Production
+    needs: deploy-uat
+    runs-on: [self-hosted, windows, prod]
+    environment: production     # required reviewers = CAB-approved change; deployment window enforced by reviewers
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: prima-stock-web, path: package }
+      - name: Apply database change scripts
+        shell: pwsh
+        run: Get-ChildItem database/0*.sql | Sort-Object Name | ForEach-Object { sqlcmd -b -S "${{ vars.SQL_SERVER }}" -d PrimaFarmStockDb -E -i $_.FullName }
+      - name: Deploy to IIS
+        shell: pwsh
+        run: ./deploy/iis-deploy.ps1 -PackagePath package -SitePath "${{ vars.IIS_SITE_PATH }}" -AppPoolName "${{ vars.IIS_APP_POOL }}" -HealthUrl "${{ vars.HEALTH_URL }}"

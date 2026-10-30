@@ -1,0 +1,90 @@
+@model RunsIndexViewModel
+@{
+    ViewData["Title"] = "History";
+    ViewData["Tagline"] = "Search previous reconciliations and download their reports.";
+    string[] statuses = [RunStatuses.Completed, RunStatuses.Approved, RunStatuses.Rejected, RunStatuses.Posted, RunStatuses.PostingFailed];
+}
+<section class="card full" aria-label="Reconciliation history">
+    <h2>Reconciliation history</h2>
+    <p class="hint">Paged server-side by <code class="ref">dbo.usp_SearchRuns</code>.</p>
+
+    <form method="get" asp-action="Index" class="filters">
+        <div class="field">
+            <label for="locationId">Location</label>
+            <select id="locationId" name="locationId">
+                <option value="">All</option>
+                @foreach (var l in Model.Locations)
+                {
+                    <option value="@l.LocationId" selected="@(l.LocationId == Model.LocationId)">@l.Name</option>
+                }
+            </select>
+        </div>
+        <div class="field">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="">All</option>
+                @foreach (var s in statuses)
+                {
+                    <option value="@s" selected="@(s == Model.Status)">@s</option>
+                }
+            </select>
+        </div>
+        <div class="field">
+            <label for="from">From</label>
+            <input id="from" name="from" type="date" value="@Model.From?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="field">
+            <label for="to">To</label>
+            <input id="to" name="to" type="date" value="@Model.To?.ToString("yyyy-MM-dd")" />
+        </div>
+        <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>Reference</th><th>Location</th><th>Source</th><th>Status</th>
+                    <th class="num">Matched</th><th class="num">Mismatched</th><th class="num">Missing</th><th class="num">Not in ERP</th>
+                    <th class="num">Accuracy</th><th>Prepared by</th><th>Created (UTC)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="11" class="empty">No reconciliations found.</td></tr>
+                }
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td><a asp-action="Details" asp-route-id="@r.RunId">@r.RunReference</a></td>
+                        <td>@r.LocationName</td>
+                        <td>@r.ErpSource</td>
+                        <td><span class="badge @r.Status">@r.Status</span></td>
+                        <td class="num">@r.MatchedCount</td>
+                        <td class="num">@r.MismatchedCount</td>
+                        <td class="num">@r.MissingInFarmCount</td>
+                        <td class="num">@r.NotInErpCount</td>
+                        <td class="num">@r.AccuracyPct.ToString("0.0")%</td>
+                        <td>@r.CreatedBy</td>
+                        <td>@r.CreatedUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pager">
+        <span>@Model.TotalCount result(s) · page @Model.Page of @Model.TotalPages</span>
+        @if (Model.Page > 1)
+        {
+            <a asp-action="Index" asp-route-page="@(Model.Page - 1)" asp-route-locationId="@Model.LocationId" asp-route-status="@Model.Status"
+               asp-route-from="@Model.From?.ToString("yyyy-MM-dd")" asp-route-to="@Model.To?.ToString("yyyy-MM-dd")">‹ Previous</a>
+        }
+        @if (Model.Page < Model.TotalPages)
+        {
+            <a asp-action="Index" asp-route-page="@(Model.Page + 1)" asp-route-locationId="@Model.LocationId" asp-route-status="@Model.Status"
+               asp-route-from="@Model.From?.ToString("yyyy-MM-dd")" asp-route-to="@Model.To?.ToString("yyyy-MM-dd")">Next ›</a>
+        }
+    </div>
+</section>

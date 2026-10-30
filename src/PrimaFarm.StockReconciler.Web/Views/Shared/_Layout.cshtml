@@ -1,0 +1,64 @@
+@{
+    const string AppName = "Prima Three Acre Farms Stock Reconciler";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Active(string c) => string.Equals(controller, c, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@(ViewData["Title"] is string t ? $"{t} · " : "")@AppName</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-bar">
+            <div class="header-inner">
+                <p class="eyebrow">Prima Group · Three Acre Farms · Internal Tool</p>
+                <h1>@AppName</h1>
+                <p class="tagline">@(ViewData["Tagline"] ?? "Compare ERP stock exports with farm stock files.")</p>
+            </div>
+            @if (signedIn)
+            {
+                <div class="user-chip">
+                    <span>@User.FindFirstValue(ClaimTypes.GivenName)</span>
+                    <span class="role">@User.FindFirstValue(ClaimTypes.Role)</span>
+                    <form method="post" asp-controller="Account" asp-action="Logout">
+                        <button type="submit">Sign out</button>
+                    </form>
+                </div>
+            }
+        </div>
+    </header>
+
+    @if (signedIn)
+    {
+        <nav class="main-nav" aria-label="Main">
+            <a class="@Active("Dashboard")" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+            @if (User.IsInRole(Roles.Admin) || User.IsInRole(Roles.Officer))
+            {
+                <a class="@Active("Reconcile")" asp-controller="Reconcile" asp-action="Index">New reconciliation</a>
+            }
+            <a class="@Active("Runs")" asp-controller="Runs" asp-action="Index">History</a>
+            @if (User.IsInRole(Roles.Admin) || User.IsInRole(Roles.Auditor))
+            {
+                <a class="@(Active("Admin") != "" && ViewContext.RouteData.Values["action"]?.ToString() == "Audit" ? "active" : "")" asp-controller="Admin" asp-action="Audit">Audit trail</a>
+                <a class="@(Active("Admin") != "" && ViewContext.RouteData.Values["action"]?.ToString() == "Integrations" ? "active" : "")" asp-controller="Admin" asp-action="Integrations">Integration log</a>
+            }
+        </nav>
+    }
+
+    <main class="site-main">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <p class="credit">Developed by Nadunika Sharindi · 2026</p>
+        <p class="app-sub">@AppName · ASP.NET Core · SQL Server</p>
+    </footer>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

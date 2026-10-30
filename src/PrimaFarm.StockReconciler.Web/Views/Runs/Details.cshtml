@@ -1,0 +1,102 @@
+@model RunDetailsViewModel
+@{
+    var run = Model.Run;
+    ViewData["Title"] = run.RunReference;
+    ViewData["Tagline"] = $"{run.Location?.Name} · reconciliation {run.RunReference}";
+    var rowVersion = Convert.ToBase64String(run.RowVer);
+}
+<section class="card full" aria-label="Reconciliation details">
+    <h2>@run.RunReference <span class="badge @run.Status">@run.Status</span></h2>
+
+    @if (TempData["Success"] is string ok)
+    {
+        <div class="alert alert-ok" role="status">@ok</div>
+    }
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-error" role="alert">@err</div>
+    }
+
+    <dl class="meta-grid">
+        <dt>Location</dt><dd>@run.Location?.Name (ERP @run.Location?.ErpLocationNo)</dd>
+        <dt>ERP source</dt><dd>@run.ErpSource · @run.ErpFileName</dd>
+        <dt>Farm file(s)</dt><dd>@run.FarmFileNames</dd>
+        <dt>Prepared by</dt><dd>@run.CreatedBy · @run.CreatedUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+        @if (run.ReviewedBy is not null)
+        {
+            <dt>Reviewed by</dt><dd>@run.ReviewedBy · @run.ReviewedUtc?.ToString("yyyy-MM-dd HH:mm") UTC @(run.ReviewComment is null ? "" : $"— “{run.ReviewComment}”")</dd>
+        }
+        @if (run.FinanceReference is not null)
+        {
+            <dt>Finance journal</dt><dd><code class="ref">@run.FinanceReference</code></dd>
+        }
+    </dl>
+
+    <div class="stat-grid">
+        <div class="stat matched"><span class="n">@run.MatchedCount</span><span class="l">Matched</span></div>
+        <div class="stat mismatch"><span class="n">@run.MismatchedCount</span><span class="l">Mismatched qty</span></div>
+        <div class="stat missing"><span class="n">@run.MissingInFarmCount</span><span class="l">Missing in farm</span></div>
+        <div class="stat unknown"><span class="n">@run.NotInErpCount</span><span class="l">Not in ERP</span></div>
+        <div class="stat dup"><span class="n">@run.SummedLineCount</span><span class="l">Lines summed</span></div>
+    </div>
+
+    <div class="inline-actions">
+        <a class="btn btn-primary btn-download" asp-action="Download" asp-route-id="@run.RunId">Download Excel report</a>
+        @if (Model.CanRetryPosting)
+        {
+            <form method="post" asp-action="RetryPosting" asp-route-id="@run.RunId">
+                <button class="btn btn-secondary" type="submit">Retry finance posting</button>
+            </form>
+        }
+    </div>
+
+    @if (Model.CanReview)
+    {
+        <h3>Review (checker)</h3>
+        <p class="muted">Approving sends the variance adjustment journal to the finance system. You cannot review your own reconciliation.</p>
+        <div class="review-grid">
+            <form method="post" asp-action="Approve" asp-route-id="@run.RunId" class="panel">
+                <input type="hidden" name="rowVersion" value="@rowVersion" />
+                <div class="field">
+                    <label for="approve-comment">Comment (optional)</label>
+                    <textarea id="approve-comment" name="comment" maxlength="500"></textarea>
+                </div>
+                <button class="btn btn-primary" type="submit">Approve &amp; post</button>
+            </form>
+            <form method="post" asp-action="Reject" asp-route-id="@run.RunId" class="panel">
+                <input type="hidden" name="rowVersion" value="@rowVersion" />
+                <div class="field">
+                    <label for="reject-comment">Reason (required)</label>
+                    <textarea id="reject-comment" name="comment" maxlength="500" required></textarea>
+                </div>
+                <button class="btn btn-danger" type="submit">Reject</button>
+            </form>
+        </div>
+    }
+
+    <h3>Largest variances</h3>
+    <div class="table-wrap">
+        <table class="data">
+            <thead>
+                <tr><th>Item code</th><th>Item name</th><th>Category</th><th class="num">ERP qty</th><th class="num">Farm qty</th><th class="num">Difference</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.TopVariances.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty">No variances — every item matched.</td></tr>
+                }
+                @foreach (var v in Model.TopVariances)
+                {
+                    <tr>
+                        <td>@v.ItemCode</td>
+                        <td class="wrap">@v.ItemName</td>
+                        <td><span class="badge @v.Category">@v.Category</span></td>
+                        <td class="num">@v.ErpQty?.ToString("0.###")</td>
+                        <td class="num">@v.FarmQty?.ToString("0.###")</td>
+                        <td class="num @(v.Difference < 0 ? "neg" : "")">@v.Difference.ToString("+0.###;-0.###;0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

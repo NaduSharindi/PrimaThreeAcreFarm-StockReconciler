@@ -1,0 +1,13 @@
+{
+  "locationCode": "wewalpanawa",
+  "erpLines": [
+    { "itemCode": "EASA0050", "itemName": "Spark plug", "qty": 10 },
+    { "itemCode": "GUOT0004", "itemName": "White cap", "qty": 38 },
+    { "itemCode": "EMSP0101", "itemName": "Fan belt", "qty": 4 }
+  ],
+  "farmLines": [
+    { "itemCode": "EASA0050", "itemName": "Spark plug", "qty": 10 },
+    { "itemCode": "GUOT0004", "itemName": "White cap", "qty": 35 },
+    { "itemCode": "EMSP0999", "itemName": "Unknown part", "qty": 1 }
+  ]
+}

@@ -1,0 +1,65 @@
+@model ReconcileViewModel
+@{
+    ViewData["Title"] = "Reconcile";
+    ViewData["Tagline"] = "Upload the ERP export and farm file(s), then create the report.";
+    var defaultId = Model.SelectedLocationId ?? Model.Locations.FirstOrDefault(l => l.IsEnabled)?.LocationId;
+}
+<section class="card wide" aria-label="Stock reconciliation">
+    <h2>Stock reconciliation</h2>
+    <p class="hint">
+        Choose a farm location, upload the ERP system export and the farm submission file(s), then compare.
+        Accepted: Excel (.xlsx/.xlsm), CSV, or the IBM i (AS400) fixed-width extract (.txt) for the ERP side. Max 10 MB per file.
+    </p>
+
+    @if (Model.Error is not null)
+    {
+        <div class="alert alert-error" role="alert">@Model.Error</div>
+    }
+
+    <form method="post" asp-action="Index" enctype="multipart/form-data" id="recon-form">
+        <p class="section-title">1 · Location</p>
+        <div class="location-grid" role="radiogroup" aria-label="Farm location">
+            @foreach (var loc in Model.Locations)
+            {
+                <label class="loc-option @(loc.IsEnabled ? "" : "is-disabled")">
+                    <input type="radio" name="locationId" value="@loc.LocationId" data-notes="@loc.Notes"
+                           checked="@(loc.LocationId == defaultId)" disabled="@(!loc.IsEnabled)" />
+                    <span class="tile @(loc.IsEnabled ? "" : "disabled")">
+                        @loc.Name
+                        <span class="status">@(loc.IsEnabled ? $"Ready · ERP {loc.ErpLocationNo}" : loc.Status)</span>
+                    </span>
+                </label>
+            }
+        </div>
+        <p class="notes" id="location-notes"></p>
+
+        <div class="upload-grid">
+            <div class="panel">
+                <h3>2 · ERP / system file</h3>
+                <div class="field">
+                    <label for="erpFile">ERP export (Excel, CSV or AS400 .txt)</label>
+                    <input id="erpFile" name="erpFile" type="file" accept=".xlsx,.xlsm,.csv,.txt,.dat" required />
+                </div>
+            </div>
+            <div class="panel">
+                <h3>3 · Farm / field file(s)</h3>
+                <div class="field">
+                    <label for="farmFile1">Farm stock file</label>
+                    <input id="farmFile1" name="farmFiles" type="file" accept=".xlsx,.xlsm,.csv" required />
+                </div>
+                <div class="field">
+                    <label for="farmFile2">Additional farm file (optional)</label>
+                    <input id="farmFile2" name="farmFiles" type="file" accept=".xlsx,.xlsm,.csv" />
+                </div>
+                <div class="field">
+                    <label for="farmFile3">Additional farm file (optional)</label>
+                    <input id="farmFile3" name="farmFiles" type="file" accept=".xlsx,.xlsm,.csv" />
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" type="submit" id="run-btn">Compare &amp; create report</button>
+        </div>
+    </form>
+</section>

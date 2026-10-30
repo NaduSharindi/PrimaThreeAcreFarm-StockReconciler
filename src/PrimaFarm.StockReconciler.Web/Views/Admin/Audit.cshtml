@@ -1,0 +1,46 @@
+@model List<AuditLog>
+@{
+    ViewData["Title"] = "Audit trail";
+    ViewData["Tagline"] = "Append-only record of sign-ins, reconciliations, reviews and downloads.";
+}
+<section class="card full" aria-label="Audit trail">
+    <h2>Audit trail</h2>
+    <p class="hint">Latest 200 events. The table is protected by a trigger: rows cannot be updated or deleted.</p>
+
+    <form method="get" asp-action="Audit" class="filters">
+        <div class="field">
+            <label for="user">Username</label>
+            <input id="user" name="user" type="text" value="@ViewBag.User" />
+        </div>
+        <div class="field">
+            <label for="action">Action</label>
+            <input id="action" name="action" type="text" value="@ViewBag.Action" placeholder="e.g. LOGIN_FAILED" />
+        </div>
+        <span></span><span></span>
+        <button class="btn btn-primary" type="submit">Filter</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="data">
+            <thead><tr><th>Time (UTC)</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th><th>Correlation id</th></tr></thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="7" class="empty">No audit events.</td></tr>
+                }
+                @foreach (var a in Model)
+                {
+                    <tr>
+                        <td>@a.EventUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@a.Username</td>
+                        <td><span class="badge @(a.Action.Contains("FAIL") || a.Action.Contains("LOCK") || a.Action.Contains("REJECT") ? "fail" : "")">@a.Action</span></td>
+                        <td>@a.Entity @a.EntityId</td>
+                        <td class="wrap">@a.Details</td>
+                        <td>@a.IpAddress</td>
+                        <td class="muted">@a.CorrelationId</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

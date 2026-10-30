@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PrimaFarm.StockReconciler.Web/PrimaFarm.StockReconciler.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PrimaFarm.StockReconciler.Tests/PrimaFarm.StockReconciler.Tests.csproj" />
+  </Folder>
+</Solution>

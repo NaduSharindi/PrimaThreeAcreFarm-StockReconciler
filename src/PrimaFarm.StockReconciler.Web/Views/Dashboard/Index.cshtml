@@ -1,0 +1,58 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Tagline"] = "Reconciliation status across Three Acre Farms breeder locations.";
+}
+<section class="card full" aria-label="Dashboard">
+    <h2>Farm overview — last @Model.Days days</h2>
+    <p class="hint">Figures come from <code class="ref">dbo.usp_GetDashboardSummary</code>. Accuracy = matched ÷ (matched + mismatched) items.</p>
+
+    <div class="table-wrap">
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>Location</th><th>Status</th><th class="num">Runs</th><th class="num">Mismatched lines</th>
+                    <th class="num">Missing lines</th><th class="num">Pending review</th><th class="num">Avg accuracy</th><th>Last run (UTC)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td><a asp-controller="Runs" asp-action="Index" asp-route-locationId="@r.LocationId">@r.LocationName</a></td>
+                        <td><span class="badge @(r.IsEnabled ? "ok" : "")">@(r.IsEnabled ? "Ready" : "Pending setup")</span></td>
+                        <td class="num">@r.RunCount</td>
+                        <td class="num">@r.MismatchedLines</td>
+                        <td class="num">@r.MissingLines</td>
+                        <td class="num">@r.PendingReview</td>
+                        <td class="num">@(r.RunCount == 0 ? "–" : $"{r.AvgAccuracyPct:0.0}%")</td>
+                        <td>@(r.LastRunUtc?.ToString("yyyy-MM-dd HH:mm") ?? "–")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Awaiting review (maker-checker)</h3>
+    <div class="table-wrap">
+        <table class="data">
+            <thead><tr><th>Reference</th><th>Location</th><th class="num">Mismatched</th><th>Prepared by</th><th>Created (UTC)</th></tr></thead>
+            <tbody>
+                @if (Model.PendingReview.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty">Nothing waiting for review.</td></tr>
+                }
+                @foreach (var r in Model.PendingReview)
+                {
+                    <tr>
+                        <td><a asp-controller="Runs" asp-action="Details" asp-route-id="@r.RunId">@r.RunReference</a></td>
+                        <td>@r.LocationName</td>
+                        <td class="num">@r.MismatchedCount</td>
+                        <td>@r.CreatedBy</td>
+                        <td>@r.CreatedUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

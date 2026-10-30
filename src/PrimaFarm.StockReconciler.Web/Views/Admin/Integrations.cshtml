@@ -1,0 +1,35 @@
+@model List<IntegrationLog>
+@{
+    ViewData["Title"] = "Integration log";
+    ViewData["Tagline"] = "Outbound calls to the finance system, for incident analysis.";
+}
+<section class="card full" aria-label="Integration log">
+    <h2>Integration log</h2>
+    <p class="hint">Latest 100 calls. Each call is retried automatically on transient failures and carries an Idempotency-Key, so a retry cannot double-post.</p>
+
+    <div class="table-wrap">
+        <table class="data">
+            <thead><tr><th>Time (UTC)</th><th>System</th><th>Operation</th><th>Idempotency key</th><th class="num">HTTP</th><th>Result</th><th class="num">ms</th><th>Response / error</th><th>Correlation id</th></tr></thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="9" class="empty">No integration calls yet. Approve a reconciliation to post a journal.</td></tr>
+                }
+                @foreach (var l in Model)
+                {
+                    <tr>
+                        <td>@l.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@l.TargetSystem</td>
+                        <td>@l.Direction @l.Operation</td>
+                        <td>@l.IdempotencyKey</td>
+                        <td class="num">@l.HttpStatus</td>
+                        <td><span class="badge @(l.Succeeded ? "ok" : "fail")">@(l.Succeeded ? "Success" : "Failed")</span></td>
+                        <td class="num">@l.DurationMs</td>
+                        <td class="wrap">@(l.ErrorMessage ?? l.ResponsePayload)</td>
+                        <td class="muted">@l.CorrelationId</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

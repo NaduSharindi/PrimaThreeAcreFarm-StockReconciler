@@ -1,0 +1,8 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1="http://primagroup.lk/threeacrefarms/stock/v1">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <v1:GetRunSummary>
+      <v1:runReference>REC-20261030-000001</v1:runReference>
+    </v1:GetRunSummary>
+  </soapenv:Body>
+</soapenv:Envelope>
